@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:speechall-cli}",
+            "name": "Debug speechall-cli",
+            "target": "speechall-cli",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug speechall-cli"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:speechall-cli}",
+            "name": "Release speechall-cli",
+            "target": "speechall-cli",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release speechall-cli"
+        }
+    ]
+}
