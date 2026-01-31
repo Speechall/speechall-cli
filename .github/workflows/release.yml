@@ -1,0 +1,183 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  SWIFT_VERSION: "6.2.3"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # macOS builds (arm64 + x86_64)
+  # ---------------------------------------------------------------------------
+  build-macos:
+    runs-on: macos-15
+    strategy:
+      matrix:
+        arch: [arm64, x86_64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: ${{ env.SWIFT_VERSION }}
+
+      - name: Build (${{ matrix.arch }})
+        run: swift build -c release --arch ${{ matrix.arch }}
+
+      - name: Copy and strip binary
+        run: |
+          BIN_PATH="$(swift build -c release --arch ${{ matrix.arch }} --show-bin-path)/speechall"
+          SUFFIX=${{ matrix.arch == 'x86_64' && 'amd64' || 'arm64' }}
+          cp "$BIN_PATH" "speechall-macos-${SUFFIX}"
+          strip "speechall-macos-${SUFFIX}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: speechall-macos-${{ matrix.arch == 'x86_64' && 'amd64' || 'arm64' }}
+          path: speechall-macos-*
+
+  # ---------------------------------------------------------------------------
+  # Linux builds (amd64 + arm64 via Docker)
+  # ---------------------------------------------------------------------------
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set up QEMU (for arm64 emulation)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Build static Linux binaries
+        run: |
+          mkdir -p output
+          DOCKER_BUILDKIT=1 docker build --output "type=local,dest=output" .
+
+      - name: Upload linux-amd64
+        uses: actions/upload-artifact@v4
+        with:
+          name: speechall-linux-amd64
+          path: output/speechall-linux-amd64
+
+      - name: Upload linux-arm64
+        uses: actions/upload-artifact@v4
+        with:
+          name: speechall-linux-arm64
+          path: output/speechall-linux-arm64
+
+  # ---------------------------------------------------------------------------
+  # Create release + push Homebrew formula
+  # ---------------------------------------------------------------------------
+  release:
+    needs: [build-macos, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Create archives
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          mkdir -p archives
+
+          for platform_arch in macos-arm64 macos-amd64 linux-arm64 linux-amd64; do
+            src="artifacts/speechall-${platform_arch}/speechall-${platform_arch}"
+            staging=$(mktemp -d)
+            cp "$src" "$staging/speechall"
+            chmod +x "$staging/speechall"
+            tar -czf "archives/speechall-${VERSION}-${platform_arch}.tar.gz" -C "$staging" speechall
+            rm -rf "$staging"
+          done
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" archives/*.tar.gz \
+            --repo "${{ github.repository }}" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes
+
+      - name: Compute checksums and generate formula
+        id: formula
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          TAG="$GITHUB_REF_NAME"
+          REPO="${{ github.repository }}"
+
+          SHA_MACOS_ARM64=$(sha256sum "archives/speechall-${VERSION}-macos-arm64.tar.gz" | awk '{print $1}')
+          SHA_MACOS_AMD64=$(sha256sum "archives/speechall-${VERSION}-macos-amd64.tar.gz" | awk '{print $1}')
+          SHA_LINUX_ARM64=$(sha256sum "archives/speechall-${VERSION}-linux-arm64.tar.gz" | awk '{print $1}')
+          SHA_LINUX_AMD64=$(sha256sum "archives/speechall-${VERSION}-linux-amd64.tar.gz" | awk '{print $1}')
+
+          mkdir -p formula
+          cat > formula/speechall.rb <<RUBY
+          class Speechall < Formula
+            desc "CLI for speech-to-text transcription via the Speechall API"
+            homepage "https://github.com/${REPO}"
+            version "${VERSION}"
+            license "MIT"
+
+            on_macos do
+              on_arm do
+                url "https://github.com/${REPO}/releases/download/${TAG}/speechall-${VERSION}-macos-arm64.tar.gz"
+                sha256 "${SHA_MACOS_ARM64}"
+              end
+              on_intel do
+                url "https://github.com/${REPO}/releases/download/${TAG}/speechall-${VERSION}-macos-amd64.tar.gz"
+                sha256 "${SHA_MACOS_AMD64}"
+              end
+            end
+
+            on_linux do
+              on_arm do
+                url "https://github.com/${REPO}/releases/download/${TAG}/speechall-${VERSION}-linux-arm64.tar.gz"
+                sha256 "${SHA_LINUX_ARM64}"
+              end
+              on_intel do
+                url "https://github.com/${REPO}/releases/download/${TAG}/speechall-${VERSION}-linux-amd64.tar.gz"
+                sha256 "${SHA_LINUX_AMD64}"
+              end
+            end
+
+            def install
+              bin.install "speechall"
+            end
+
+            test do
+              assert_match version.to_s, shell_output("#{bin}/speechall --version")
+            end
+          end
+          RUBY
+
+      - name: Push formula to homebrew-tap
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/Speechall/homebrew-tap.git" /tmp/homebrew-tap
+          mkdir -p /tmp/homebrew-tap/Formula
+          cp formula/speechall.rb /tmp/homebrew-tap/Formula/speechall.rb
+          cd /tmp/homebrew-tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/speechall.rb
+          git commit -m "speechall ${VERSION}"
+          git push

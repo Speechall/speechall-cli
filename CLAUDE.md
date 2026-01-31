@@ -51,6 +51,45 @@ The Dockerfile pins `swift:6.2.3` and the matching Static Linux SDK. To bump:
 2. Update the `swift sdk install` URL and `--checksum` from https://www.swift.org/install/linux/ (Static Linux SDK section).
 3. The Swift toolchain version must exactly match the SDK version.
 
+## Release
+
+### Prerequisites
+
+- `gh` CLI installed and authenticated (`gh auth login`)
+- Docker installed and running (for Linux builds)
+- `Speechall/homebrew-tap` repo exists on GitHub (public, with `Formula/` directory)
+
+### Creating a release
+
+```bash
+./release.sh 0.1.0          # full release: build, tag, publish, push formula
+./release.sh --formula-only 0.1.0  # regenerate and push formula only (recovery)
+```
+
+The script:
+1. Validates prerequisites (clean tree, tag doesn't exist, Docker running)
+2. Updates the version string in `speechall_cli.swift`
+3. Builds macOS and Linux binaries via `build-macos.sh` and `build-linux.sh`
+4. Verifies no non-system dynamic dependencies on macOS
+5. Creates `.tar.gz` archives in `output/archives/`
+6. Commits the version bump, tags, and pushes
+7. Creates a GitHub Release with the archives
+8. Generates the Homebrew formula with SHA256 checksums
+9. Pushes the formula to `Speechall/homebrew-tap`
+
+### GitHub Actions (CI/CD)
+
+Push a tag `v*` to trigger `.github/workflows/release.yml`, which builds binaries,
+creates a GitHub Release, and pushes the Homebrew formula automatically. Requires
+a `HOMEBREW_TAP_TOKEN` secret with write access to `Speechall/homebrew-tap`.
+
+### Installing via Homebrew
+
+```bash
+brew install Speechall/tap/speechall
+speechall --version
+```
+
 ## Architecture
 
 Single-file CLI (`Sources/speechall/speechall_cli.swift`) built on:
