@@ -8,3 +8,6 @@ DerivedData/
 .netrc
 .claude/settings.local.json
 .env
+/output/
+speechall-linux-*
+speechall-macos-*

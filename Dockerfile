@@ -33,6 +33,13 @@ RUN swift build -c release --swift-sdk aarch64-swift-linux-musl \
     && cp "$(swift build -c release --swift-sdk aarch64-swift-linux-musl --show-bin-path)/speechall" \
        /output/speechall-linux-arm64
 
+# Install cross-architecture strip tools and strip debug symbols
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends binutils-x86-64-linux-gnu binutils-aarch64-linux-gnu \
+    && rm -rf /var/lib/apt/lists/* \
+    && x86_64-linux-gnu-strip /output/speechall-linux-amd64 \
+    && aarch64-linux-gnu-strip /output/speechall-linux-arm64
+
 # Export stage - only the binaries
 FROM scratch
 COPY --from=builder /output/ /
