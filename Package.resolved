@@ -1,5 +1,5 @@
 {
-  "originHash" : "ab45a2f83aeba15294fd9ed058f56e15b7bd0b7040e1a24aa2c1a89407a453f8",
+  "originHash" : "b65c375466b59d2db20bb3ae81358e26a9c764d84f875ecfef9574d0b1d9ba32",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "4b99975677236d13f0754339864e5360142ff5a1",
         "version" : "1.30.3"
+      }
+    },
+    {
+      "identity" : "ffmpeg-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wendylabsinc/ffmpeg-swift",
+      "state" : {
+        "branch" : "main",
+        "revision" : "b88ee402662e079686455a58ab781e260261467d"
       }
     },
     {
