@@ -8,12 +8,11 @@ on:
 permissions:
   contents: write
 
-env:
-  SWIFT_VERSION: "6.2.3"
-
 jobs:
   # ---------------------------------------------------------------------------
   # macOS builds (arm64 + x86_64)
+  # Relies on the Xcode toolchain preinstalled on the runner.
+  # Update the runner image when a newer Xcode/Swift version is needed.
   # ---------------------------------------------------------------------------
   build-macos:
     runs-on: macos-15
@@ -23,9 +22,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: swift-actions/setup-swift@v2
-        with:
-          swift-version: ${{ env.SWIFT_VERSION }}
+      - name: Print Swift version
+        run: swift --version
 
       - name: Build (${{ matrix.arch }})
         run: swift build -c release --arch ${{ matrix.arch }}
