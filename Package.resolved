@@ -1,5 +1,5 @@
 {
-  "originHash" : "b65c375466b59d2db20bb3ae81358e26a9c764d84f875ecfef9574d0b1d9ba32",
+  "originHash" : "c35ace87226061f3e9c859fe12c867f24e6173f8d4fecdb37ed7caa2f0aa4d51",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -11,12 +11,12 @@
       }
     },
     {
-      "identity" : "ffmpeg-swift",
+      "identity" : "speechall-swift-sdk",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/wendylabsinc/ffmpeg-swift",
+      "location" : "https://github.com/Speechall/speechall-swift-sdk",
       "state" : {
         "branch" : "main",
-        "revision" : "b88ee402662e079686455a58ab781e260261467d"
+        "revision" : "1a9e54355ea2ffedc45f3df1881075ef905d7a87"
       }
     },
     {
@@ -224,6 +224,15 @@
       "state" : {
         "revision" : "7c6ad0fc39d0763e0b699210e4124afd5041c5df",
         "version" : "1.6.4"
+      }
+    },
+    {
+      "identity" : "usefulthings",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/atacan/UsefulThings",
+      "state" : {
+        "branch" : "main",
+        "revision" : "c0e92c20c4227ac75313efaeaf632f025e875a25"
       }
     }
   ],

@@ -7,8 +7,8 @@ let package = Package(
     name: "speechall-cli",
     platforms: [.macOS(.v26)],
     dependencies: [
-        // .package(url: "https://github.com/Speechall/speechall-swift-sdk", branch: "main"),
-        .package(path: "/Users/atacan/Developer/Repositories/Speechall-SDK/speechall-swift-sdk/"),
+        .package(url: "https://github.com/Speechall/speechall-swift-sdk", branch: "main"),
+        // .package(path: "/Users/atacan/Developer/Repositories/Speechall-SDK/speechall-swift-sdk/"),
         .package(url: "https://github.com/apple/swift-openapi-runtime.git", from: "1.8.0"),
         .package(url: "https://github.com/swift-server/swift-openapi-async-http-client", from: "1.1.0"),
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.7.0"),
