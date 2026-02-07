@@ -15,7 +15,7 @@ CLI for speech-to-text transcription via the Speechall API. Supports multiple pr
 brew install Speechall/tap/speechall
 ```
 
-**Without Homebrew**: See [references/manual-install.md](references/manual-install.md) for manual download instructions.
+**Without Homebrew**: Download the binary for your platform from https://github.com/Speechall/speechall-cli/releases and place it on your `PATH`.
 
 ### Verify
 
