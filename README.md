@@ -12,6 +12,16 @@ Supports providers like OpenAI, Deepgram, AssemblyAI, Cloudflare, Groq, ElevenLa
 brew install Speechall/tap/speechall
 ```
 
+### AI Agent Skill
+
+This is a great tool to let your agent to transcribe your recordings into plain text or subtitles. To add this skill to your AI agent:
+
+```bash
+npx skills add https://github.com/Speechall/speechall-cli --skill speechall-cli
+```
+
+It is available also for OpenClaw at [clawhub](https://clawhub.ai/atacan/speechall-cli)
+
 ### From source
 
 Requires Swift 6.2+.
