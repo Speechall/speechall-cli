@@ -35,7 +35,7 @@ cp .build/release/speechall /usr/local/bin/
 
 ## Setup
 
-Get an API key from [speechall.com](https://speechall.com) and either export it or pass it directly:
+Get an API key from [speechall.com](https://speechall.com/console/api-keys) and either export it or pass it directly:
 
 ```bash
 export SPEECHALL_API_KEY="your-key"

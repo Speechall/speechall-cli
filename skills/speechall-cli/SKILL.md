@@ -33,6 +33,8 @@ export SPEECHALL_API_KEY="your-key-here"
 speechall --api-key "your-key-here" audio.wav
 ```
 
+The user can create an API key on https://speechall.com/console/api-keys
+
 ## Commands
 
 ### transcribe (default)
