@@ -22,17 +22,20 @@ let package = Package(
                 .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
                 .product(name: "OpenAPIAsyncHTTPClient", package: "swift-openapi-async-http-client"),
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
-            ]
+            ],
+            path: "Sources/SpeechallCLI"
         ),
         .executableTarget(
             name: "speechall",
             dependencies: [
                 "SpeechallCLI",
-            ]
+            ],
+            path: "Sources/speechall"
         ),
         .testTarget(
             name: "SpeechallCLITests",
-            dependencies: ["SpeechallCLI"]
+            dependencies: ["SpeechallCLI"],
+            path: "Tests/SpeechallCLITests",
         )
     ]
 )

@@ -21,6 +21,7 @@ RUN swift package resolve
 
 # Copy source code
 COPY Sources/ Sources/
+COPY Tests/ Tests/
 
 # Build for x86_64
 RUN swift build -c release --swift-sdk x86_64-swift-linux-musl \
