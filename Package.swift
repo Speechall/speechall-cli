@@ -14,8 +14,8 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.7.0"),
     ],
     targets: [
-        .executableTarget(
-            name: "speechall",
+        .target(
+            name: "SpeechallCLI",
             dependencies: [
                 .product(name: "SpeechallAPI", package: "speechall-swift-sdk"),
                 .product(name: "SpeechallAPITypes", package: "speechall-swift-sdk"),
@@ -23,6 +23,16 @@ let package = Package(
                 .product(name: "OpenAPIAsyncHTTPClient", package: "swift-openapi-async-http-client"),
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ]
+        ),
+        .executableTarget(
+            name: "speechall",
+            dependencies: [
+                "SpeechallCLI",
+            ]
+        ),
+        .testTarget(
+            name: "SpeechallCLITests",
+            dependencies: ["SpeechallCLI"]
         )
     ]
 )
