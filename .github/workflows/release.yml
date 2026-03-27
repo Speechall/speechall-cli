@@ -104,14 +104,20 @@ jobs:
             rm -rf "$staging"
           done
 
-      - name: Create GitHub Release
+      - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "$GITHUB_REF_NAME" archives/*.tar.gz \
-            --repo "${{ github.repository }}" \
-            --title "$GITHUB_REF_NAME" \
-            --generate-notes
+          if gh release view "$GITHUB_REF_NAME" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" archives/*.tar.gz \
+              --repo "${{ github.repository }}" \
+              --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" archives/*.tar.gz \
+              --repo "${{ github.repository }}" \
+              --title "$GITHUB_REF_NAME" \
+              --generate-notes
+          fi
 
       - name: Compute checksums and generate formula
         id: formula
