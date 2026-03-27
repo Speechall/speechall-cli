@@ -1,3 +1,4 @@
+import ArgumentParser
 import Foundation
 import OpenAPIRuntime
 import SpeechallAPITypes
@@ -6,7 +7,38 @@ import XCTest
 @testable import SpeechallCLI
 
 final class CommandAPISmokeTests: XCTestCase {
-    func testModelsSubcommandDefaultAPICallSucceeds() async throws {
+    func testEveryConfiguredSubcommandDefaultAPICallSucceeds() async throws {
+        let configuredSubcommands = Self.collectConfiguredSubcommands(from: Speechall.self)
+        XCTAssertFalse(configuredSubcommands.isEmpty)
+
+        for commandType in configuredSubcommands {
+            guard let smokeCase = try Self.makeSmokeCase(for: commandType) else {
+                XCTFail("Missing default API smoke case for configured subcommand \(commandType)")
+                continue
+            }
+
+            try await smokeCase.run()
+        }
+    }
+
+    private static func collectConfiguredSubcommands(from commandType: ParsableCommand.Type) -> [ParsableCommand.Type] {
+        commandType.configuration.subcommands.flatMap { subcommand in
+            [subcommand] + collectConfiguredSubcommands(from: subcommand)
+        }
+    }
+
+    private static func makeSmokeCase(for commandType: ParsableCommand.Type) throws -> CommandSmokeCase? {
+        switch ObjectIdentifier(commandType) {
+        case ObjectIdentifier(Models.self):
+            return try makeModelsSmokeCase()
+        case ObjectIdentifier(Transcribe.self):
+            return try makeTranscribeSmokeCase()
+        default:
+            return nil
+        }
+    }
+
+    private static func makeModelsSmokeCase() throws -> CommandSmokeCase {
         let recorder = CommandRecorder()
         let client = TestAPIClient(
             listSpeechToTextModelsHandler: { input in
@@ -22,23 +54,25 @@ final class CommandAPISmokeTests: XCTestCase {
             }
         )
 
-        try await runModels(
-            options: .init(),
-            dependencies: Self.makeDependencies(recorder: recorder, client: client)
-        )
+        return CommandSmokeCase {
+            try await runModels(
+                options: .init(),
+                dependencies: makeDependencies(recorder: recorder, client: client)
+            )
 
-        XCTAssertEqual(recorder.resolvedAPIKeyOptions, [nil])
-        XCTAssertEqual(recorder.createdClientKeys, ["test-api-key"])
-        XCTAssertEqual(recorder.listModelsInputs.count, 1)
-        XCTAssertTrue(recorder.transcribeInputs.isEmpty)
-        XCTAssertTrue(recorder.stderrMessages.isEmpty)
+            XCTAssertEqual(recorder.resolvedAPIKeyOptions, [nil])
+            XCTAssertEqual(recorder.createdClientKeys, ["test-api-key"])
+            XCTAssertEqual(recorder.listModelsInputs.count, 1)
+            XCTAssertTrue(recorder.transcribeInputs.isEmpty)
+            XCTAssertTrue(recorder.stderrMessages.isEmpty)
 
-        let output = try XCTUnwrap(recorder.stdoutMessages.onlyElement)
-        let models = try JSONDecoder().decode([Components.Schemas.SpeechToTextModel].self, from: Data(output.utf8))
-        XCTAssertEqual(models.map(\.id), [.openai_period_gpt_hyphen_4o_hyphen_mini_hyphen_transcribe])
+            let output = try XCTUnwrap(recorder.stdoutMessages.onlyElement)
+            let models = try JSONDecoder().decode([Components.Schemas.SpeechToTextModel].self, from: Data(output.utf8))
+            XCTAssertEqual(models.map(\.id), [.openai_period_gpt_hyphen_4o_hyphen_mini_hyphen_transcribe])
+        }
     }
 
-    func testTranscribeSubcommandDefaultAPICallSucceeds() async throws {
+    private static func makeTranscribeSmokeCase() throws -> CommandSmokeCase {
         let recorder = CommandRecorder()
         let client = TestAPIClient(
             transcribeHandler: { input in
@@ -50,36 +84,38 @@ final class CommandAPISmokeTests: XCTestCase {
                 )
             }
         )
+        let audioURL = try makeTemporaryAudioFile()
 
-        let audioURL = try Self.makeTemporaryAudioFile()
-        defer { try? FileManager.default.removeItem(at: audioURL) }
+        return CommandSmokeCase {
+            defer { try? FileManager.default.removeItem(at: audioURL) }
 
-        try await runTranscribe(
-            options: .init(file: audioURL.path),
-            dependencies: Self.makeDependencies(recorder: recorder, client: client)
-        )
+            try await runTranscribe(
+                options: .init(file: audioURL.path),
+                dependencies: makeDependencies(recorder: recorder, client: client)
+            )
 
-        XCTAssertEqual(recorder.resolvedAPIKeyOptions, [nil])
-        XCTAssertEqual(recorder.createdClientKeys, ["test-api-key"])
-        XCTAssertEqual(recorder.listModelsInputs.count, 0)
-        XCTAssertEqual(recorder.transcribeInputs.count, 1)
-        XCTAssertTrue(recorder.stderrMessages.isEmpty)
-        XCTAssertEqual(recorder.stdoutMessages, ["transcribed text"])
+            XCTAssertEqual(recorder.resolvedAPIKeyOptions, [nil])
+            XCTAssertEqual(recorder.createdClientKeys, ["test-api-key"])
+            XCTAssertEqual(recorder.listModelsInputs.count, 0)
+            XCTAssertEqual(recorder.transcribeInputs.count, 1)
+            XCTAssertTrue(recorder.stderrMessages.isEmpty)
+            XCTAssertEqual(recorder.stdoutMessages, ["transcribed text"])
 
-        let input = try XCTUnwrap(recorder.transcribeInputs.onlyElement)
-        XCTAssertEqual(input.query.model, .openai_period_gpt_hyphen_4o_hyphen_mini_hyphen_transcribe)
-        XCTAssertNil(input.query.language)
-        XCTAssertNil(input.query.output_format)
-        XCTAssertNil(input.query.ruleset_id)
-        XCTAssertNil(input.query.punctuation)
-        XCTAssertNil(input.query.diarization)
-        XCTAssertNil(input.query.initial_prompt)
-        XCTAssertNil(input.query.temperature)
-        XCTAssertNil(input.query.speakers_expected)
-        XCTAssertNil(input.query.custom_vocabulary)
+            let input = try XCTUnwrap(recorder.transcribeInputs.onlyElement)
+            XCTAssertEqual(input.query.model, .openai_period_gpt_hyphen_4o_hyphen_mini_hyphen_transcribe)
+            XCTAssertNil(input.query.language)
+            XCTAssertNil(input.query.output_format)
+            XCTAssertNil(input.query.ruleset_id)
+            XCTAssertNil(input.query.punctuation)
+            XCTAssertNil(input.query.diarization)
+            XCTAssertNil(input.query.initial_prompt)
+            XCTAssertNil(input.query.temperature)
+            XCTAssertNil(input.query.speakers_expected)
+            XCTAssertNil(input.query.custom_vocabulary)
 
-        let bodyData = try await Self.data(from: input.body)
-        XCTAssertEqual(bodyData, Data("fake-audio".utf8))
+            let bodyData = try await Self.data(from: input.body)
+            XCTAssertEqual(bodyData, Data("fake-audio".utf8))
+        }
     }
 
     private static func makeDependencies(
@@ -150,6 +186,10 @@ final class CommandAPISmokeTests: XCTestCase {
             return Data(buffer.readableBytesView)
         }
     }
+}
+
+private struct CommandSmokeCase {
+    let run: @Sendable () async throws -> Void
 }
 
 private final class CommandRecorder: @unchecked Sendable {
