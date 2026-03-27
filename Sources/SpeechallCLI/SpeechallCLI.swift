@@ -32,6 +32,32 @@ enum CommandDependencyContext {
     @TaskLocal static var current = CommandDependencies.live
 }
 
+protocol DefaultAPISmokeTestableCommand: ParsableCommand {
+    static func makeDefaultAPISmokePlan() throws -> DefaultAPISmokePlan
+}
+
+struct DefaultAPISmokePlan: Sendable {
+    var run: @Sendable (CommandDependencies) async throws -> Void
+    var expectation: DefaultAPISmokeExpectation
+    var cleanup: @Sendable () -> Void = {}
+}
+
+enum DefaultAPISmokeExpectation: Sendable {
+    case transcribe(TranscribeSmokeExpectation)
+    case listModels(ListModelsSmokeExpectation)
+}
+
+struct TranscribeSmokeExpectation: Sendable {
+    var stdout: String
+    var bodyData: Data
+    var query: Operations.transcribe.Input.Query
+}
+
+struct ListModelsSmokeExpectation: Sendable {
+    var responseModels: [Components.Schemas.SpeechToTextModel]
+    var expectedOutputModels: [Components.Schemas.SpeechToTextModel]
+}
+
 struct TranscribeRequestOptions: Sendable {
     var file: String
     var model: Components.Schemas.TranscriptionModelIdentifier = .openai_period_gpt_hyphen_4o_hyphen_mini_hyphen_transcribe
@@ -142,6 +168,46 @@ public struct Transcribe: AsyncParsableCommand {
     }
 }
 
+extension Transcribe: DefaultAPISmokeTestableCommand {
+    static func makeDefaultAPISmokePlan() throws -> DefaultAPISmokePlan {
+        let bodyData = Data("fake-audio".utf8)
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("wav")
+        try bodyData.write(to: fileURL)
+
+        let options = TranscribeRequestOptions(file: fileURL.path)
+        let query = Operations.transcribe.Input.Query(
+            model: options.model,
+            language: options.language,
+            output_format: options.outputFormat,
+            ruleset_id: options.rulesetId,
+            punctuation: options.noPunctuation ? false : nil,
+            diarization: options.diarization ? true : nil,
+            initial_prompt: options.initialPrompt,
+            temperature: options.temperature,
+            speakers_expected: options.speakersExpected,
+            custom_vocabulary: options.customVocabulary.isEmpty ? nil : options.customVocabulary
+        )
+
+        return DefaultAPISmokePlan(
+            run: { dependencies in
+                try await runTranscribe(options: options, dependencies: dependencies)
+            },
+            expectation: .transcribe(
+                .init(
+                    stdout: "transcribed text",
+                    bodyData: bodyData,
+                    query: query
+                )
+            ),
+            cleanup: {
+                try? FileManager.default.removeItem(at: fileURL)
+            }
+        )
+    }
+}
+
 public struct Models: AsyncParsableCommand {
     public static let configuration = CommandConfiguration(
         abstract: "List available speech-to-text models and their capabilities.",
@@ -197,6 +263,39 @@ public struct Models: AsyncParsableCommand {
                 apiKey: apiKey
             ),
             dependencies: CommandDependencyContext.current
+        )
+    }
+}
+
+extension Models: DefaultAPISmokeTestableCommand {
+    static func makeDefaultAPISmokePlan() throws -> DefaultAPISmokePlan {
+        let availableModel = Components.Schemas.SpeechToTextModel(
+            id: .openai_period_gpt_hyphen_4o_hyphen_mini_hyphen_transcribe,
+            display_name: "GPT-4o mini transcribe",
+            provider: .openai,
+            is_available: true,
+            supports_srt: true,
+            supports_vtt: true
+        )
+        let unavailableModel = Components.Schemas.SpeechToTextModel(
+            id: .deepgram_period_nova_hyphen_2,
+            display_name: "Nova-2",
+            provider: .deepgram,
+            is_available: false,
+            supports_srt: true,
+            supports_vtt: true
+        )
+
+        return DefaultAPISmokePlan(
+            run: { dependencies in
+                try await runModels(options: .init(), dependencies: dependencies)
+            },
+            expectation: .listModels(
+                .init(
+                    responseModels: [availableModel, unavailableModel],
+                    expectedOutputModels: [availableModel]
+                )
+            )
         )
     }
 }
