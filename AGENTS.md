@@ -9,7 +9,7 @@ After changes, run quick CLI checks:
 - `swift run speechall models --provider deepgram`
 - `swift run speechall models --language tr`
 - `swift run speechall models --diarization --srt`
-- `swift run speechall "/Users/atacan/Downloads/09c18f21-c1c2-4739-b33a-3637f1b55c4b.wav"`
+- `swift run speechall /path/to/audio.wav` (use any local .wav/.mp3 audio file)
 
 ## Design Principles
 
