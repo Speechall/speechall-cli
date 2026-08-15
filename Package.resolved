@@ -1,5 +1,5 @@
 {
-  "originHash" : "c35ace87226061f3e9c859fe12c867f24e6173f8d4fecdb37ed7caa2f0aa4d51",
+  "originHash" : "f1800c4e8b17498eccc8ba207bfc2e7aaf379a830061a9dce5230818f114b708",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -16,7 +16,7 @@
       "location" : "https://github.com/Speechall/speechall-swift-sdk",
       "state" : {
         "branch" : "main",
-        "revision" : "e3862dbdb5143373b63e2dcd09d1a86909158406"
+        "revision" : "30d7905198546744e5c656d968cd711b182b01e4"
       }
     },
     {

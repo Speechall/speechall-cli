@@ -96,7 +96,7 @@ public struct Speechall: AsyncParsableCommand {
 
             Set SPEECHALL_API_KEY environment variable or pass --api-key.
             """,
-        version: "0.2.0",
+        version: "0.3.0",
         subcommands: [Transcribe.self, Models.self],
         defaultSubcommand: Transcribe.self
     )
@@ -178,7 +178,7 @@ extension Transcribe: DefaultAPISmokeTestableCommand {
 
         let options = TranscribeRequestOptions(file: fileURL.path)
         let query = Operations.transcribe.Input.Query(
-            model: options.model,
+            model: options.model.rawValue,
             language: options.language,
             output_format: options.outputFormat,
             ruleset_id: options.rulesetId,
@@ -270,7 +270,7 @@ public struct Models: AsyncParsableCommand {
 extension Models: DefaultAPISmokeTestableCommand {
     static func makeDefaultAPISmokePlan() throws -> DefaultAPISmokePlan {
         let availableModel = Components.Schemas.SpeechToTextModel(
-            id: .openai_period_gpt_hyphen_4o_hyphen_mini_hyphen_transcribe,
+            id: Components.Schemas.TranscriptionModelIdentifier.openai_period_gpt_hyphen_4o_hyphen_mini_hyphen_transcribe.rawValue,
             display_name: "GPT-4o mini transcribe",
             provider: .openai,
             is_available: true,
@@ -278,7 +278,7 @@ extension Models: DefaultAPISmokeTestableCommand {
             supports_vtt: true
         )
         let unavailableModel = Components.Schemas.SpeechToTextModel(
-            id: .deepgram_period_nova_hyphen_2,
+            id: Components.Schemas.TranscriptionModelIdentifier.deepgram_period_nova_hyphen_2.rawValue,
             display_name: "Nova-2",
             provider: .deepgram,
             is_available: false,
@@ -313,7 +313,7 @@ func runTranscribe(
     let body = try await dependencies.loadAudioBody(fileUrl)
 
     let query = Operations.transcribe.Input.Query(
-            model: options.model,
+            model: options.model.rawValue,
             language: options.language,
             output_format: options.outputFormat,
             ruleset_id: options.rulesetId,
