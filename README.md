@@ -2,7 +2,7 @@
 
 CLI for speech-to-text transcription via the [Speechall API](https://speechall.com).
 
-Supports providers like OpenAI, Deepgram, AssemblyAI, Cloudflare, Groq, ElevenLabs, Google, Gemini, and more.
+Supports providers like OpenAI, Deepgram, AssemblyAI, Cloudflare, Groq, ElevenLabs, Gemini, Smallest AI, Soniox, and more.
 
 ## Install
 

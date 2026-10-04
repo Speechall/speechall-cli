@@ -91,12 +91,12 @@ public struct Speechall: AsyncParsableCommand {
         abstract: "Transcribe audio and video files using the Speechall API.",
         discussion: """
             Supported models include providers like openai, deepgram, assemblyai, \
-            cloudflare, groq, elevenlabs, google, gemini, and more. \
+            cloudflare, groq, elevenlabs, gemini, smallestai, soniox, and more. \
             Use the format provider.model (e.g. deepgram.nova-2, openai.whisper-1).
 
             Set SPEECHALL_API_KEY environment variable or pass --api-key.
             """,
-        version: "0.3.0",
+        version: "1.0.0",
         subcommands: [Transcribe.self, Models.self],
         defaultSubcommand: Transcribe.self
     )
