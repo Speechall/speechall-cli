@@ -96,7 +96,7 @@ public struct Speechall: AsyncParsableCommand {
 
             Set SPEECHALL_API_KEY environment variable or pass --api-key.
             """,
-        version: "2.1.0",
+        version: "2.2.0",
         subcommands: [Transcribe.self, Models.self],
         defaultSubcommand: Transcribe.self
     )
