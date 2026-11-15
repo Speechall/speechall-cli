@@ -11,7 +11,7 @@ swift package resolve                # resolve dependencies after Package.swift 
 
 After any implementation change, run `swift build` and fix compiler errors before finishing.
 
-No tests exist in this repo yet.
+Run tests with `swift test` (`Tests/SpeechallCLITests`).
 
 ## Release Binaries
 
@@ -106,5 +106,5 @@ The SDK is a remote GitHub dependency (`https://github.com/Speechall/speechall-s
 
 - `prepareAudioBody(from:)` (from SpeechallAPI module) handles file streaming and video-to-audio extraction (macOS only via AVFoundation; Linux falls back to returning the URL as-is).
 - Error responses use overloaded `handleError(statusCode:body:)` and `extractErrorMessage(from:)` methods because the OpenAPI-generated response types don't share a common protocol.
-- API key resolution: `--api-key` flag takes priority over `SPEECHALL_API_KEY` environment variable.
+- API key resolution (`resolveAPIKeyWithSource` in `SpeechallCLI.swift`): `--api-key` flag, then `SPEECHALL_API_KEY`, then the key stored by `speechall auth login`. Storage sits behind the `CredentialStore` protocol (`CredentialStore.swift`): Keychain on macOS (`#if canImport(Security)`), a 0600 file under `$XDG_CONFIG_HOME/speechall/` elsewhere. Tests use an in-memory store and must never write to the real Keychain.
 - Boolean API parameters use nil-signaling: `--diarization` sends `true`, `--no-punctuation` sends `false`, absence sends `nil` (API default).

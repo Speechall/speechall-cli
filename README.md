@@ -35,10 +35,37 @@ cp .build/release/speechall /usr/local/bin/
 
 ## Setup
 
-Get an API key from [speechall.com](https://speechall.com/console/api-keys) and either export it or pass it directly:
+Get an API key from [speechall.com](https://speechall.com/console/api-keys) and store it once:
+
+```bash
+speechall auth login            # prompts with input hidden
+pbpaste | speechall auth login  # or read one line from stdin
+speechall auth login < keyfile
+```
+
+The key is checked against the API before it is saved, and the command never takes the key as an argument, so it stays out of your shell history and process list. Where it is stored:
+
+- **macOS**: the login Keychain (generic password, service `com.speechall.cli`).
+- **Linux**: `$XDG_CONFIG_HOME/speechall/credentials` (default `~/.config/speechall/credentials`). The directory is created with mode `0700` and the file with mode `0600`.
+
+```bash
+speechall auth status   # shows the key source and a masked key; exits 0 if a key is available, 1 if not
+speechall auth logout   # deletes the stored key
+```
+
+### Key resolution order
+
+Every command that calls the API looks for a key in this order:
+
+1. `--api-key <key>` flag
+2. `SPEECHALL_API_KEY` environment variable
+3. The stored key from `speechall auth login`
+
+The flag and environment variable still work for CI and one-off overrides:
 
 ```bash
 export SPEECHALL_API_KEY="your-key"
+speechall audio.wav --api-key your-key
 ```
 
 ## Usage
@@ -55,9 +82,6 @@ speechall audio.wav --output-format srt
 
 # Enable speaker diarization
 speechall audio.wav --diarization --speakers-expected 3
-
-# Pass API key directly
-speechall audio.wav --api-key your-key
 
 # List available models
 speechall models
