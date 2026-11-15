@@ -79,6 +79,8 @@ The script:
 
 ### GitHub Actions (CI/CD)
 
+`.github/workflows/ci.yml` runs on every PR and push to `main`: `swift test` on Linux (`swift:6.2.3` container) and macOS, plus the static Linux build from `Dockerfile` with a smoke test of the amd64 binary (`--version`, `auth status`/`logout`).
+
 Push a tag `v*` to trigger `.github/workflows/release.yml`, which builds binaries,
 creates a GitHub Release, and pushes the Homebrew formula automatically. Requires
 a `HOMEBREW_TAP_TOKEN` secret with write access to `Speechall/homebrew-tap`.

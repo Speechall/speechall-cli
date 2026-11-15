@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Unit tests on Linux (glibc), using the same Swift version as the release Dockerfile.
+  test-linux:
+    runs-on: ubuntu-latest
+    container: swift:6.2.3
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Print Swift version
+        run: swift --version
+
+      - name: Test
+        run: swift test
+
+  # Unit tests on macOS.
+  test-macos:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Print Swift version
+        run: swift --version
+
+      - name: Test
+        run: swift test
+
+  # Build the static musl binaries exactly as the release does, then smoke-test the amd64 one.
+  build-linux-static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build static Linux binaries
+        run: |
+          mkdir -p output
+          DOCKER_BUILDKIT=1 docker build --output "type=local,dest=output" .
+          ls -lh output
+
+      - name: Smoke test (amd64)
+        env:
+          BIN: output/speechall-linux-amd64
+        run: |
+          set -euo pipefail
+          chmod +x "$BIN"
+          export XDG_CONFIG_HOME="$RUNNER_TEMP/xdg"
+          unset SPEECHALL_API_KEY || true
+
+          "$BIN" --version
+          "$BIN" --help > /dev/null
+          "$BIN" auth --help > /dev/null
+
+          # No key anywhere: status must fail.
+          if "$BIN" auth status; then
+            echo "auth status should exit non-zero without a key" >&2
+            exit 1
+          fi
+
+          # Key from the environment: status succeeds and never prints the full key.
+          out=$(SPEECHALL_API_KEY="ci-smoke-test-value-wxyz" "$BIN" auth status)
+          echo "$out"
+          if echo "$out" | grep -q "ci-smoke-test-value"; then
+            echo "auth status printed the full key" >&2
+            exit 1
+          fi
+
+          # Logout with nothing stored succeeds.
+          "$BIN" auth logout
