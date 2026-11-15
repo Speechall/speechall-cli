@@ -110,3 +110,7 @@ The SDK is a remote GitHub dependency (`https://github.com/Speechall/speechall-s
 - Error responses use overloaded `handleError(statusCode:body:)` and `extractErrorMessage(from:)` methods because the OpenAPI-generated response types don't share a common protocol.
 - API key resolution (`resolveAPIKeyWithSource` in `SpeechallCLI.swift`): `--api-key` flag, then `SPEECHALL_API_KEY`, then the key stored by `speechall auth login`. Storage sits behind the `CredentialStore` protocol (`CredentialStore.swift`): Keychain on macOS (`#if canImport(Security)`), a 0600 file under `$XDG_CONFIG_HOME/speechall/` elsewhere. Tests use an in-memory store and must never write to the real Keychain.
 - Boolean API parameters use nil-signaling: `--diarization` sends `true`, `--no-punctuation` sends `false`, absence sends `nil` (API default).
+
+## Agent skill
+
+The `speechall-cli` agent skill lives in [Speechall/speechall-claude-plugin](https://github.com/Speechall/speechall-claude-plugin) (`plugins/speechall/skills/speechall-cli/SKILL.md`), not in this repo. When CLI flags or commands change, update the skill there and bump the plugin version.
