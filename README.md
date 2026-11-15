@@ -14,10 +14,18 @@ brew install Speechall/tap/speechall
 
 ### AI Agent Skill
 
-This is a great tool to let your agent to transcribe your recordings into plain text or subtitles. To add this skill to your AI agent:
+This is a great tool to let your agent to transcribe your recordings into plain text or subtitles. The skill lives in [Speechall/speechall-claude-plugin](https://github.com/Speechall/speechall-claude-plugin).
+
+In Claude Code, install it as a plugin:
+
+```
+/plugin install speechall --marketplace Speechall/speechall-claude-plugin
+```
+
+For other agents:
 
 ```bash
-npx skills add https://github.com/Speechall/speechall-cli --skill speechall-cli
+npx skills add https://github.com/Speechall/speechall-claude-plugin --skill speechall-cli
 ```
 
 It is available also for OpenClaw at [clawhub](https://clawhub.ai/atacan/speechall-cli)
