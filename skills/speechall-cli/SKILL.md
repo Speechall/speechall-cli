@@ -1,6 +1,6 @@
 ---
 name: speechall-cli
-description: "Install and use the speechall CLI tool for speech-to-text transcription. Use when the user wants to: (1) transcribe audio or video files to text, (2) install speechall on macOS or Linux, (3) list available STT models and their capabilities, (4) use speaker diarization, subtitles, or other transcription features from the terminal. Triggers on mentions of speechall, audio transcription CLI, or speech-to-text from the command line."
+description: "Install and use the speechall CLI tool for speech-to-text transcription. Use when the user wants to: (1) transcribe audio or video files to text, (2) install speechall on macOS or Linux, (3) list available STT models and their capabilities, (4) use speaker diarization, subtitles, or other transcription features from the terminal, (5) check or set up the Speechall API key (`speechall auth status`, `speechall auth login`). Triggers on mentions of speechall, audio transcription CLI, or speech-to-text from the command line."
 ---
 
 # speechall-cli
@@ -25,15 +25,24 @@ speechall --version
 
 ## Authentication
 
-An API key is required. Provide it via environment variable (preferred) or flag:
+Before running any other command, check that an API key is available:
 
 ```bash
-export SPEECHALL_API_KEY="your-key-here"
-# or
-speechall --api-key "your-key-here" audio.wav
+speechall auth status
 ```
 
-The user can create an API key on https://speechall.com/console/api-keys
+- Exit code 0: a key is available. The output shows its source (`--api-key` flag, `SPEECHALL_API_KEY`, or stored key) and a masked form such as `****abcd`. Continue.
+- Non-zero exit code: no key is available. Stop and ask the user to run this **in their own terminal** (not through you):
+
+  ```bash
+  speechall auth login
+  ```
+
+  It prompts for the key with input hidden, verifies it with the Speechall API, and stores it (macOS Keychain, or `~/.config/speechall/credentials` on Linux). The user can create a key at https://speechall.com/console/api-keys. After they confirm, run `speechall auth status` again.
+
+**Never ask the user to paste their API key into the chat**, and never put a key in a command you run, in an environment variable you set, or in a file you write. If the user pastes a key into the chat anyway, do not use it; tell them to run `speechall auth login` in their terminal, and suggest they rotate the key since it is now in the conversation.
+
+`speechall auth logout` deletes the stored key.
 
 ## Commands
 
@@ -59,7 +68,6 @@ speechall <file> [options]
 | `--initial-prompt <text>` | Text prompt to guide model style | — |
 | `--custom-vocabulary <term>` | Terms to boost recognition (repeatable) | — |
 | `--ruleset-id <uuid>` | Replacement ruleset UUID | — |
-| `--api-key <key>` | API key (overrides `SPEECHALL_API_KEY` env var) | — |
 
 **Examples:**
 
@@ -123,4 +131,5 @@ speechall models --provider openai | jq '.[].identifier'
 - On Linux, pass audio files directly (`.wav`, `.mp3`, `.m4a`, `.flac`, etc.).
 - Output goes to stdout. Redirect to save: `speechall audio.wav > transcript.txt`
 - Errors go to stderr, so piping stdout is safe.
-- Run `speechall --help`, `speechall transcribe --help`, or `speechall models --help` to see all valid enum values for model identifiers, language codes, and output formats.
+- If a command fails with "API key required" or HTTP 401, run `speechall auth status` and follow the Authentication section above.
+- Run `speechall --help`, `speechall transcribe --help`, `speechall models --help`, or `speechall auth --help` to see all valid enum values for model identifiers, language codes, and output formats.

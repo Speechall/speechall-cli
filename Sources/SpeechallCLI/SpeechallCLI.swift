@@ -11,9 +11,13 @@ extension Components.Schemas.TranscriptOutputFormat: @retroactive ExpressibleByA
 extension Components.Schemas.TranscriptionProvider: @retroactive ExpressibleByArgument {}
 
 struct CommandDependencies: Sendable {
-    var resolveAPIKey: @Sendable (String?) throws -> String = { option in
-        try resolveRuntimeAPIKey(from: option)
-    }
+    /// Overrides API key resolution entirely (used by smoke tests). When nil, the key is resolved
+    /// from the flag, then `environment`, then `credentialStore`.
+    var resolveAPIKey: (@Sendable (String?) throws -> String)? = nil
+    var environment: [String: String] = ProcessInfo.processInfo.environment
+    var credentialStore: any CredentialStore = makeDefaultCredentialStore()
+    /// Reads the API key for `auth login` from a hidden TTY prompt or one line of stdin.
+    var readAPIKeyInput: @Sendable () throws -> String? = readAPIKeyFromStandardInput
     var makeAPIClient: @Sendable (String) -> any APIProtocol = { apiKey in
         makeLiveClient(apiKey: apiKey)
     }
@@ -26,6 +30,13 @@ struct CommandDependencies: Sendable {
     var writeStderr: @Sendable (String) -> Void = writeStandardError
 
     static let live = Self()
+
+    func apiKey(for option: String?) throws -> String {
+        if let resolveAPIKey {
+            return try resolveAPIKey(option)
+        }
+        return try resolveRuntimeAPIKey(from: option, environment: environment, store: credentialStore)
+    }
 }
 
 enum CommandDependencyContext {
@@ -94,10 +105,13 @@ public struct Speechall: AsyncParsableCommand {
             cloudflare, groq, elevenlabs, gemini, smallestai, soniox, and more. \
             Use the format provider.model (e.g. deepgram.nova-2, openai.whisper-1).
 
-            Set SPEECHALL_API_KEY environment variable or pass --api-key.
+            Authentication: run `speechall auth login` once to store your API key \
+            (macOS Keychain, or ~/.config/speechall/credentials on Linux). \
+            Key resolution order: --api-key, then SPEECHALL_API_KEY, then the stored key. \
+            Check with `speechall auth status`.
             """,
         version: "2.3.0",
-        subcommands: [Transcribe.self, Models.self],
+        subcommands: [Transcribe.self, Models.self, Auth.self],
         defaultSubcommand: Transcribe.self
     )
 
@@ -142,7 +156,7 @@ public struct Transcribe: AsyncParsableCommand {
     @Option(parsing: .singleValue, help: "Terms to boost recognition (repeatable).")
     public var customVocabulary: [String] = []
 
-    @Option(help: "Speechall API key (env: SPEECHALL_API_KEY).")
+    @Option(help: "Speechall API key. Overrides SPEECHALL_API_KEY and the stored key (see `speechall auth login`).")
     public var apiKey: String?
 
     public init() {}
@@ -244,7 +258,7 @@ public struct Models: AsyncParsableCommand {
     @Flag(help: "Only models that support custom vocabulary.")
     public var vocabulary: Bool = false
 
-    @Option(help: "Speechall API key (env: SPEECHALL_API_KEY).")
+    @Option(help: "Speechall API key. Overrides SPEECHALL_API_KEY and the stored key (see `speechall auth login`).")
     public var apiKey: String?
 
     public init() {}
@@ -309,7 +323,7 @@ func runTranscribe(
         throw ValidationError("File not found: \(fileUrl.path)")
     }
 
-    let resolvedKey = try dependencies.resolveAPIKey(options.apiKey)
+    let resolvedKey = try dependencies.apiKey(for: options.apiKey)
     let body = try await dependencies.loadAudioBody(fileUrl)
 
     let query = Operations.transcribe.Input.Query(
@@ -362,7 +376,7 @@ func runModels(
     options: ModelsRequestOptions,
     dependencies: CommandDependencies
 ) async throws {
-    let resolvedKey = try dependencies.resolveAPIKey(options.apiKey)
+    let resolvedKey = try dependencies.apiKey(for: options.apiKey)
     let client = dependencies.makeAPIClient(resolvedKey)
     let response = try await client.listSpeechToTextModels(.init())
 
@@ -447,12 +461,78 @@ private func handleTranscribeOkResponse(
     }
 }
 
-func resolveRuntimeAPIKey(from option: String?) throws -> String {
-    let resolved = option ?? ProcessInfo.processInfo.environment["SPEECHALL_API_KEY"]
-    guard let key = resolved, !key.isEmpty else {
-        throw ValidationError("API key required. Use --api-key or set SPEECHALL_API_KEY.")
+let apiKeyEnvironmentVariable = "SPEECHALL_API_KEY"
+
+let missingAPIKeyMessage = """
+    API key required. Run `speechall auth login` in your terminal to store one, \
+    or set SPEECHALL_API_KEY, or pass --api-key.
+    """
+
+enum APIKeySource: Equatable, Sendable {
+    case flag
+    case environment
+    case stored(location: String)
+
+    var description: String {
+        switch self {
+        case .flag:
+            return "--api-key flag"
+        case .environment:
+            return "\(apiKeyEnvironmentVariable) environment variable"
+        case .stored(let location):
+            return "stored key (\(location))"
+        }
     }
-    return key
+}
+
+struct ResolvedAPIKey: Equatable, Sendable {
+    var key: String
+    var source: APIKeySource
+}
+
+/// Resolves the API key in priority order: `--api-key` flag, `SPEECHALL_API_KEY`, stored key.
+/// Empty values are skipped. The store is only read when neither flag nor env var is set.
+func resolveAPIKeyWithSource(
+    from option: String?,
+    environment: [String: String],
+    store: any CredentialStore
+) throws -> ResolvedAPIKey? {
+    if let option, !option.isEmpty {
+        return ResolvedAPIKey(key: option, source: .flag)
+    }
+    if let envKey = environment[apiKeyEnvironmentVariable], !envKey.isEmpty {
+        return ResolvedAPIKey(key: envKey, source: .environment)
+    }
+    if let stored = try store.readAPIKey(), !stored.isEmpty {
+        return ResolvedAPIKey(key: stored, source: .stored(location: store.locationDescription))
+    }
+    return nil
+}
+
+func resolveRuntimeAPIKey(
+    from option: String?,
+    environment: [String: String],
+    store: any CredentialStore
+) throws -> String {
+    let resolved: ResolvedAPIKey?
+    do {
+        resolved = try resolveAPIKeyWithSource(from: option, environment: environment, store: store)
+    } catch {
+        throw ValidationError("\(error)\n\(missingAPIKeyMessage)")
+    }
+    guard let resolved else {
+        throw ValidationError(missingAPIKeyMessage)
+    }
+    return resolved.key
+}
+
+/// Masks an API key for display. Only the last 4 characters are shown, and only when the key
+/// is long enough that 4 characters reveal little; short keys are fully masked.
+func maskAPIKey(_ key: String) -> String {
+    guard key.count >= 12 else {
+        return "****"
+    }
+    return "****" + key.suffix(4)
 }
 
 func makeLiveClient(apiKey: String) -> any APIProtocol {

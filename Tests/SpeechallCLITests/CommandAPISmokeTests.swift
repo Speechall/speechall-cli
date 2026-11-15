@@ -12,6 +12,9 @@ final class CommandAPISmokeTests: XCTestCase {
         XCTAssertFalse(configuredSubcommands.isEmpty)
 
         for commandType in configuredSubcommands {
+            if commandType is any CredentialManagementCommand.Type {
+                continue
+            }
             guard let smokeTestableType = commandType as? any DefaultAPISmokeTestableCommand.Type else {
                 XCTFail("Configured subcommand \(commandType) must conform to DefaultAPISmokeTestableCommand")
                 continue
