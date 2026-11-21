@@ -5,10 +5,8 @@ import OpenAPIRuntime
 import SpeechallAPI
 import SpeechallAPITypes
 
-extension Components.Schemas.TranscriptionModelIdentifier: @retroactive ExpressibleByArgument {}
 extension Components.Schemas.TranscriptLanguageCode: @retroactive ExpressibleByArgument {}
 extension Components.Schemas.TranscriptOutputFormat: @retroactive ExpressibleByArgument {}
-extension Components.Schemas.TranscriptionProvider: @retroactive ExpressibleByArgument {}
 
 struct CommandDependencies: Sendable {
     /// Overrides API key resolution entirely (used by smoke tests). When nil, the key is resolved
@@ -71,7 +69,7 @@ struct ListModelsSmokeExpectation: Sendable {
 
 struct TranscribeRequestOptions: Sendable {
     var file: String
-    var model: Components.Schemas.TranscriptionModelIdentifier = .openai_period_gpt_hyphen_4o_hyphen_mini_hyphen_transcribe
+    var model: String = "openai.gpt-4o-mini-transcribe"
     var language: Components.Schemas.TranscriptLanguageCode?
     var outputFormat: Components.Schemas.TranscriptOutputFormat?
     var rulesetId: String?
@@ -85,7 +83,7 @@ struct TranscribeRequestOptions: Sendable {
 }
 
 struct ModelsRequestOptions: Sendable {
-    var provider: Components.Schemas.TranscriptionProvider?
+    var provider: String?
     var language: String?
     var diarization: Bool = false
     var srt: Bool = false
@@ -126,8 +124,11 @@ public struct Transcribe: AsyncParsableCommand {
     @Argument(help: "Path to an audio or video file.", completion: .file())
     public var file: String
 
-    @Option(help: "STT model.")
-    public var model: Components.Schemas.TranscriptionModelIdentifier = .openai_period_gpt_hyphen_4o_hyphen_mini_hyphen_transcribe
+    @Option(
+        help: "STT model ID (provider.model). Run `speechall models` for the current list.",
+        completion: .list(Components.Schemas.TranscriptionModelIdentifier.allCases.map(\.rawValue))
+    )
+    public var model: String = "openai.gpt-4o-mini-transcribe"
 
     @Option(help: "Language code.")
     public var language: Components.Schemas.TranscriptLanguageCode?
@@ -192,7 +193,7 @@ extension Transcribe: DefaultAPISmokeTestableCommand {
 
         let options = TranscribeRequestOptions(file: fileURL.path)
         let query = Operations.transcribe.Input.Query(
-            model: options.model.rawValue,
+            model: options.model,
             language: options.language,
             output_format: options.outputFormat,
             ruleset_id: options.rulesetId,
@@ -231,8 +232,11 @@ public struct Models: AsyncParsableCommand {
             """
     )
 
-    @Option(help: "Filter by provider.")
-    public var provider: Components.Schemas.TranscriptionProvider?
+    @Option(
+        help: "Filter by provider.",
+        completion: .list(Components.Schemas.TranscriptionProvider.allCases.map(\.rawValue))
+    )
+    public var provider: String?
 
     @Option(help: """
         Filter by supported language. Matches primary language tag: \
@@ -286,7 +290,7 @@ extension Models: DefaultAPISmokeTestableCommand {
         let availableModel = Components.Schemas.SpeechToTextModel(
             id: Components.Schemas.TranscriptionModelIdentifier.openai_period_gpt_hyphen_4o_hyphen_mini_hyphen_transcribe.rawValue,
             display_name: "GPT-4o mini transcribe",
-            provider: .openai,
+            provider: "openai",
             is_available: true,
             supports_srt: true,
             supports_vtt: true
@@ -294,7 +298,7 @@ extension Models: DefaultAPISmokeTestableCommand {
         let unavailableModel = Components.Schemas.SpeechToTextModel(
             id: Components.Schemas.TranscriptionModelIdentifier.deepgram_period_nova_hyphen_2.rawValue,
             display_name: "Nova-2",
-            provider: .deepgram,
+            provider: "deepgram",
             is_available: false,
             supports_srt: true,
             supports_vtt: true
@@ -327,7 +331,7 @@ func runTranscribe(
     let body = try await dependencies.loadAudioBody(fileUrl)
 
     let query = Operations.transcribe.Input.Query(
-            model: options.model.rawValue,
+            model: options.model,
             language: options.language,
             output_format: options.outputFormat,
             ruleset_id: options.rulesetId,

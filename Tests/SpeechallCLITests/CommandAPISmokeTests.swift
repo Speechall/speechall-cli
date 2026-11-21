@@ -7,6 +7,18 @@ import XCTest
 @testable import SpeechallCLI
 
 final class CommandAPISmokeTests: XCTestCase {
+    func testTranscribeAcceptsUnknownModelIdentifier() throws {
+        let command = try Transcribe.parse(["audio.wav", "--model", "futurecorp.model-x"])
+
+        XCTAssertEqual(command.model, "futurecorp.model-x")
+    }
+
+    func testModelsAcceptsUnknownProviderIdentifier() throws {
+        let command = try Models.parse(["--provider", "futurecorp"])
+
+        XCTAssertEqual(command.provider, "futurecorp")
+    }
+
     func testEveryConfiguredSubcommandDefaultAPICallSucceeds() async throws {
         let configuredSubcommands = Self.collectConfiguredSubcommands(from: Speechall.self)
         XCTAssertFalse(configuredSubcommands.isEmpty)
