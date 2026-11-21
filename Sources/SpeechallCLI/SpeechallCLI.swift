@@ -108,7 +108,7 @@ public struct Speechall: AsyncParsableCommand {
             Key resolution order: --api-key, then SPEECHALL_API_KEY, then the stored key. \
             Check with `speechall auth status`.
             """,
-        version: "2.4.1",
+        version: "2.5.0",
         subcommands: [Transcribe.self, Models.self, Auth.self],
         defaultSubcommand: Transcribe.self
     )
